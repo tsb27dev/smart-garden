@@ -9,9 +9,10 @@ data class PlantEntity(
     @PrimaryKey val id: String,
     val name: String,
     val humidityThreshold: Int,
-    val lastUpdated: Long
+    val lastUpdated: Long,
+    val isSynced: Boolean = true
 ) {
-    fun toDomain() = Plant(id, name, humidityThreshold, lastUpdated)
+    fun toDomain() = Plant(id, name, humidityThreshold, lastUpdated, isSynced)
 }
 
-fun Plant.toEntity() = PlantEntity(id, name, humidityThreshold, lastUpdated)
+fun Plant.toEntity() = PlantEntity(id, name, humidityThreshold, lastUpdated, isSynced)

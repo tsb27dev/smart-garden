@@ -25,7 +25,9 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "smart_garden_db"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides

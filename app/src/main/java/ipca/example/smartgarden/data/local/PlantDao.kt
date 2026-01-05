@@ -16,4 +16,10 @@ interface PlantDao {
 
     @Query("SELECT * FROM plants WHERE id = :id")
     suspend fun getPlantById(id: String): PlantEntity?
+
+    @Query("SELECT * FROM plants WHERE isSynced = 0")
+    suspend fun getUnsyncedPlants(): List<PlantEntity>
+
+    @Query("UPDATE plants SET isSynced = 1 WHERE id = :id")
+    suspend fun markAsSynced(id: String)
 }

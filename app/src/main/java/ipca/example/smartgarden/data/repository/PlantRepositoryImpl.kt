@@ -1,5 +1,6 @@
 package ipca.example.smartgarden.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import ipca.example.smartgarden.data.local.PlantDao
 import ipca.example.smartgarden.data.local.toEntity
@@ -24,24 +25,41 @@ class PlantRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addPlant(plant: Plant) {
-        val newDoc = plantsCollection.document()
-        val plantWithId = plant.copy(id = newDoc.id)
+        val id = if (plant.id.isEmpty()) plantsCollection.document().id else plant.id
+        val plantWithId = plant.copy(id = id, isSynced = false)
         
-        // Save to local Room first for offline support
+        // Save to Room first (isSynced = false)
         plantDao.insertPlant(plantWithId.toEntity())
         
-        // Save to Firestore
-        newDoc.set(plantWithId).await()
+        try {
+            plantsCollection.document(id).set(plantWithId.copy(isSynced = true)).await()
+            plantDao.markAsSynced(id)
+            Log.d("Firestore", "Successfully added plant: ${plant.name}")
+        } catch (e: Exception) {
+            Log.e("Firestore", "Offline: Plant saved locally, will sync later", e)
+        }
     }
 
     override suspend fun updatePlant(plant: Plant) {
-        plantDao.insertPlant(plant.toEntity())
-        plantsCollection.document(plant.id).set(plant).await()
+        val updatedPlant = plant.copy(isSynced = false)
+        plantDao.insertPlant(updatedPlant.toEntity())
+        try {
+            plantsCollection.document(plant.id).set(plant.copy(isSynced = true)).await()
+            plantDao.markAsSynced(plant.id)
+            Log.d("Firestore", "Successfully updated plant: ${plant.name}")
+        } catch (e: Exception) {
+            Log.e("Firestore", "Offline: Update saved locally", e)
+        }
     }
 
     override suspend fun deletePlant(plant: Plant) {
         plantDao.deletePlant(plant.toEntity())
-        plantsCollection.document(plant.id).delete().await()
+        try {
+            plantsCollection.document(plant.id).delete().await()
+            Log.d("Firestore", "Successfully deleted plant from Firestore")
+        } catch (e: Exception) {
+            Log.e("Firestore", "Offline: Deleted locally, might persist in cloud until next sync", e)
+        }
     }
 
     override suspend fun getPlantById(id: String): Plant? {
@@ -49,14 +67,28 @@ class PlantRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncPlants() {
+        // 1. Upload unsynced local changes to Firestore
+        try {
+            val unsynced = plantDao.getUnsyncedPlants()
+            unsynced.forEach { entity ->
+                val plant = entity.toDomain()
+                plantsCollection.document(plant.id).set(plant.copy(isSynced = true)).await()
+                plantDao.markAsSynced(plant.id)
+            }
+        } catch (e: Exception) {
+            Log.e("Firestore", "Sync upload failed", e)
+        }
+
+        // 2. Download changes from Firestore
         try {
             val snapshot = plantsCollection.get().await()
             val remotePlants = snapshot.toObjects(Plant::class.java)
             remotePlants.forEach { plant ->
-                plantDao.insertPlant(plant.toEntity())
+                plantDao.insertPlant(plant.copy(isSynced = true).toEntity())
             }
+            Log.d("Firestore", "Sync download completed")
         } catch (e: Exception) {
-            // Handle sync error (e.g., offline)
+            Log.e("Firestore", "Sync download failed", e)
         }
     }
 }
