@@ -4,6 +4,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ipca.example.smartgarden.R
@@ -23,10 +26,15 @@ fun ProfileScreen(
     onAccountDeleted: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
+    var currentPassword by remember { mutableStateOf("") }
+    var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
+    var newPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var confirmPasswordForDelete by remember { mutableStateOf("") }
+    var confirmPasswordForDeleteVisible by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -69,10 +77,32 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 TextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = { Text("Current Password") },
+                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (currentPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = if (currentPasswordVisible) "Hide password" else "Show password")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextField(
                     value = newPassword,
                     onValueChange = { newPassword = it },
                     label = { Text("New Password") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (newPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = if (newPasswordVisible) "Hide password" else "Show password")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -89,12 +119,20 @@ fun ProfileScreen(
                     onClick = {
                         errorMessage = null
                         successMessage = null
-                        if (newPassword.length < 6) {
-                            errorMessage = "Password should be at least 6 characters"
+                        if (currentPassword.isBlank()) {
+                            errorMessage = "Current password is required"
                             return@Button
                         }
-                        viewModel.updatePassword(newPassword, 
-                            onSuccess = { successMessage = "Password updated successfully!" },
+                        if (newPassword.length < 6) {
+                            errorMessage = "New password should be at least 6 characters"
+                            return@Button
+                        }
+                        viewModel.updatePassword(currentPassword, newPassword, 
+                            onSuccess = { 
+                                successMessage = "Password updated successfully!"
+                                currentPassword = ""
+                                newPassword = ""
+                            },
                             onError = { errorMessage = it }
                         )
                     },
@@ -105,7 +143,7 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Divider()
+                HorizontalDivider()
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -121,15 +159,44 @@ fun ProfileScreen(
 
         if (showDeleteDialog) {
             AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
+                onDismissRequest = { 
+                    showDeleteDialog = false
+                    confirmPasswordForDelete = ""
+                    confirmPasswordForDeleteVisible = false
+                },
                 title = { Text("Delete Account") },
-                text = { Text("Are you sure you want to delete your account? This action cannot be undone.") },
+                text = {
+                    Column {
+                        Text("Are you sure you want to delete your account? This action cannot be undone. Please enter your password to confirm.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextField(
+                            value = confirmPasswordForDelete,
+                            onValueChange = { confirmPasswordForDelete = it },
+                            label = { Text("Password") },
+                            visualTransformation = if (confirmPasswordForDeleteVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                val image = if (confirmPasswordForDeleteVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                IconButton(onClick = { confirmPasswordForDeleteVisible = !confirmPasswordForDeleteVisible }) {
+                                    Icon(imageVector = image, contentDescription = if (confirmPasswordForDeleteVisible) "Hide password" else "Show password")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
                 confirmButton = {
                     Button(
                         onClick = {
+                            if (confirmPasswordForDelete.isBlank()) return@Button
                             viewModel.deleteAccount(
+                                password = confirmPasswordForDelete,
                                 onSuccess = onAccountDeleted,
-                                onError = { errorMessage = it; showDeleteDialog = false }
+                                onError = { 
+                                    errorMessage = it
+                                    showDeleteDialog = false
+                                    confirmPasswordForDelete = ""
+                                    confirmPasswordForDeleteVisible = false
+                                }
                             )
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -138,7 +205,11 @@ fun ProfileScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
+                    TextButton(onClick = { 
+                        showDeleteDialog = false
+                        confirmPasswordForDelete = ""
+                        confirmPasswordForDeleteVisible = false
+                    }) {
                         Text("Cancel")
                     }
                 }

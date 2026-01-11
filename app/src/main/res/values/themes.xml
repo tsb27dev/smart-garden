@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base application theme -->
+    <style name="Theme.Smartgarden" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Optional: Customize your theme here -->
+    </style>
 
-    <style name="Theme.Smartgarden" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Splash Screen Theme -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="postSplashScreenTheme">@style/Theme.Smartgarden</item>
+    </style>
 </resources>

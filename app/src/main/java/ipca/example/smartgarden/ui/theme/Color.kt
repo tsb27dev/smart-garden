@@ -2,6 +2,11 @@ package ipca.example.smartgarden.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+val Green80 = Color(0xFFB9F6CA) // A light green
+val Green40 = Color(0xFF00C853) // A vibrant green
+val DarkGreen = Color(0xFF00796B)
+val LightGreen = Color(0xFF81C784)
+
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
